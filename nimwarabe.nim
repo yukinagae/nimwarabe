@@ -100,6 +100,22 @@ proc rank_of(sq: Square): Rank = SquareToRank[sq]
 ## 筋(File)と段(Rank)から、それに対応する升(Square)を返す。
 proc `|`(f: File, r: Rank): Square = Square(f.ord * 9 + r.ord)
 
+## 駒
+
+## 金の順番を飛の後ろにしておく。KINGを8にしておく。
+## こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
+type Piece = enum NO_PIECE, PAWN, LANCE, KNIGHT, SILVER, BISHOP, ROOK, GOLD,
+                  KING, PRO_PAWN, PRO_LANCE, PRO_KNIGHT, PRO_SILVER, HORSE, DRAGON, QUEEN
+type ColorPiece = enum B_PAWN = 1 , B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROOK, B_GOLD , B_KING, B_PRO_PAWN, B_PRO_LANCE, B_PRO_KNIGHT, B_PRO_SILVER, B_HORSE, B_DRAGON, B_QUEEN,
+                       W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD , W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_QUEEN,
+const PIECE_PROMOTE = 8 ## 成り駒と非成り駒との差(この定数を足すと成り駒になる)
+const PIECE_WHITE = 16 ## これを先手の駒に加算すると後手の駒になる。
+
+## USIプロトコルで駒を表す文字列を返す。
+proc usi_piece(pc: Piece): string = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k".substr(pc.ord * 2, pc.ord * 2 + 1)
+
+## 駒に対して、それが先後、どちらの手番の駒であるかを返す。
+proc color_of(cpc: ColorPiece): Color = return if (cpc.ord and PIECE_WHITE) > 0: WHITE else: BLACK
 
 # 動作確認テスト
 echo ENGINE_VERSION
