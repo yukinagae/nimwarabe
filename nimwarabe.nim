@@ -1,4 +1,3 @@
-import strutils
 
 ## 手番
 type Color = enum BLACK, WHITE, COLOR_ALL ## BLACK: 先手, WHITE: 後手, COLOR_ALL: 先後共通の何か
