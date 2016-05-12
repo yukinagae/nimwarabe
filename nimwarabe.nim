@@ -31,6 +31,9 @@ proc to_rank(c: char): Rank = Rank(c.ord - 'a'.ord) ## USIの指し手文字列�
 proc p(r: Rank) = echo char('a'.ord + r.ord) ## USI形式でRankを出力する
 
 ## 升目
+
+##  盤上の升目に対応する定数。
+## 盤上右上(１一が0)、左下(９九)が80
 type Square = enum SQ_11, SQ_12, SQ_13, SQ_14, SQ_15, SQ_16, SQ_17, SQ_18, SQ_19,
                    SQ_21, SQ_22, SQ_23, SQ_24, SQ_25, SQ_26, SQ_27, SQ_28, SQ_29,
                    SQ_31, SQ_32, SQ_33, SQ_34, SQ_35, SQ_36, SQ_37, SQ_38, SQ_39,
