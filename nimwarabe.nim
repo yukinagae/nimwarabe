@@ -5,6 +5,12 @@
 ## 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
 const ENGINE_VERSION = "0.1"
 
+## util
+proc `<<`(a: int, b: int): int = a shl b ## 左シフト
+proc `>>`(a: int, b: int): int = a shr b ## 右シフト
+
+
+
 ## 手番
 type Color = enum BLACK, WHITE, COLOR_ALL ## BLACK: 先手, WHITE: 後手, COLOR_ALL: 先後共通の何か
 proc `~`(c: Color): int = c.ord and 1 ## 相手番を返す
@@ -124,6 +130,9 @@ proc type_of(cpc: ColorPiece): Piece = Piece(cpc.ord and 15)
 ## 例) 成銀→銀 , 後手の馬→先手の角
 ## ただし、pc == KINGでの呼び出しはNO_PIECEが返るものとする。
 proc raw_type_of(cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord and 7)
+
+## pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
+proc make_piece(c: Color, cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord + (c.ord << 4))
 
 # 動作確認テスト
 echo ENGINE_VERSION
