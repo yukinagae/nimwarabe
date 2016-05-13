@@ -6,7 +6,7 @@
 const ENGINE_VERSION = "0.1"
 
 ## pretty表示時に、日本語表記にするかどうかのフラグ(USI形式ではない)
-const pretty_jp = true
+const pretty_jp = false
 
 
 ##
@@ -239,6 +239,28 @@ proc pretty(f: File): string = return if pretty_jp: "１２３４５６７８９
 # pretty_jpがtrueならば、日本語文字での表示になる。例 → 八
 # pretty_jpがfalseならば、数字のみの表示になる。例 → 8
 proc pretty(r: Rank): string = return if pretty_jp: "一二三四五六七八九".substr(r.ord * 2, 2) else: (r.ord + 1).intToStr
+
+# Squareを綺麗に出力する(USI形式ではない)
+# pretty_jpがtrueならば、日本語文字での表示になる。例 → ８八
+# pretty_jpがfalseならば、数字のみの表示になる。例 → 88
+proc pretty(sq: Square): string = pretty(file_of(sq)) & pretty(rank_of(sq))
+
+# Pieceを綺麗に出力する(USI形式ではない) 先手の駒は大文字、後手の駒は小文字、成り駒は先頭に+がつく。盤面表示に使う。
+#proc pretty(pc: Piece): string = usi_piece(pc) #USI_PIECE.substr(pc.ord * 2, 2)
+
+# ↑のpretty()だと先手の駒を表示したときに先頭にスペースが入るので、それが嫌な場合はこちらを用いる。
+# FIXME proc pretty2(pc: Piece): string = pretty(pc).substr(1, )
+
+#proc pretty(m: Move): string =
+#    if is_drop(m):
+#        return "a"
+#        #return pretty(move_to(m)) & pretty(Piece(move_from(m).ord)) & "*"
+#    else:
+#        if is_promote(m):
+#            return pretty(move_from(m)) & pretty(move_to(m)) & "+"
+#        else:
+#            return pretty(move_from(m)) & pretty(move_to(m))
+        
 
 # 動作確認テスト
 echo ENGINE_VERSION
