@@ -117,5 +117,13 @@ proc usi_piece(pc: Piece): string = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b
 ## 駒に対して、それが先後、どちらの手番の駒であるかを返す。
 proc color_of(cpc: ColorPiece): Color = return if (cpc.ord and PIECE_WHITE) > 0: WHITE else: BLACK
 
+## 後手の歩→先手の歩のように、後手という属性を取り払った駒種を返す
+proc type_of(cpc: ColorPiece): Piece = Piece(cpc.ord and 15)
+
+## 成ってない駒を返す。後手という属性も消去する。
+## 例) 成銀→銀 , 後手の馬→先手の角
+## ただし、pc == KINGでの呼び出しはNO_PIECEが返るものとする。
+proc raw_type_of(cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord and 7)
+
 # 動作確認テスト
 echo ENGINE_VERSION
