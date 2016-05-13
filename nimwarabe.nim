@@ -127,42 +127,29 @@ type ColorPiece = enum B_PAWN = 1 , B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROO
 const PIECE_PROMOTE = 8 ## 成り駒と非成り駒との差(この定数を足すと成り駒になる)
 const PIECE_WHITE = 16 ## これを先手の駒に加算すると後手の駒になる。
 
-## USIプロトコルで駒を表す文字列を返す。
-proc usi_piece(pc: Piece): string = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k".substr(pc.ord * 2, pc.ord * 2 + 1)
+proc usi_piece(pc: Piece): string = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k".substr(pc.ord * 2, pc.ord * 2 + 1) # USIプロトコルで駒を表す文字列を返す。
+proc color_of(cpc: ColorPiece): Color = return if (cpc.ord and PIECE_WHITE) > 0: WHITE else: BLACK # 駒に対して、それが先後、どちらの手番の駒であるかを返す。
+proc type_of(cpc: ColorPiece): Piece = Piece(cpc.ord and 15) # 後手の歩→先手の歩のように、後手という属性を取り払った駒種を返す
 
-## 駒に対して、それが先後、どちらの手番の駒であるかを返す。
-proc color_of(cpc: ColorPiece): Color = return if (cpc.ord and PIECE_WHITE) > 0: WHITE else: BLACK
-
-## 後手の歩→先手の歩のように、後手という属性を取り払った駒種を返す
-proc type_of(cpc: ColorPiece): Piece = Piece(cpc.ord and 15)
-
-## 成ってない駒を返す。後手という属性も消去する。
-## 例) 成銀→銀 , 後手の馬→先手の角
-## ただし、pc == KINGでの呼び出しはNO_PIECEが返るものとする。
+# 成ってない駒を返す。後手という属性も消去する。
+# 例) 成銀→銀 , 後手の馬→先手の角
+# ただし、pc == KINGでの呼び出しはNO_PIECEが返るものとする。
 proc raw_type_of(cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord and 7)
+proc make_piece(c: Color, cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord + (c.ord << 4)) # pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
+proc has_long_effect(pc: Piece): bool = (pc == LANCE) or (((pc.ord + 1) and 6) == 6) # pcが遠方駒であるかを判定する。LANCE,BISHOP(5),ROOK(6),HORSE(13),DRAGON(14)
+proc is_ok(pc: Piece): bool = (NO_PIECE <= pc) and (pc <= QUEEN) # Pieceの整合性の検査。assert用。
+proc is_ok(cpc: ColorPiece): bool = (B_PAWN <= cpc) and (cpc <= W_QUEEN) # ColorPieceの整合性の検査。assert用。
 
-## pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
-proc make_piece(c: Color, cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord + (c.ord << 4))
-
-## pcが遠方駒であるかを判定する。LANCE,BISHOP(5),ROOK(6),HORSE(13),DRAGON(14)
-proc has_long_effect(pc: Piece): bool = (pc == LANCE) or (((pc.ord + 1) and 6) == 6)
-
-## Pieceの整合性の検査。assert用。
-proc is_ok(pc: Piece): bool = (NO_PIECE <= pc) and (pc <= QUEEN)
-
-## ColorPieceの整合性の検査。assert用。
-proc is_ok(cpc: ColorPiece): bool = (B_PAWN <= cpc) and (cpc <= W_QUEEN)
-
+##
 ## 駒箱
-
-## Positionクラスで用いる、駒リスト(どの駒がどこにあるのか)を管理するときの番号。
+##
+# Positionクラスで用いる、駒リスト(どの駒がどこにあるのか)を管理するときの番号。
 type PieceNo = enum PIECE_NO_PAWN = 0, PIECE_NO_LANCE = 18, PIECE_NO_KNIGHT = 22, PIECE_NO_SILVER = 26,
                     PIECE_NO_GOLD = 30, PIECE_NO_BISHOP = 34, PIECE_NO_ROOK = 36, PIECE_NO_KING = 38, 
                     # PIECE_NO_BKING = 38, PIECE_NO_WKING = 39, # 先手、後手の玉の番号が必要な場合はこっちを用いる
                     PIECE_NO_NB = 40
-                    
-## PieceNoの整合性の検査。assert用。
-proc is_ok(pn: PieceNo): bool = (PIECE_NO_PAWN <= pn) and (pn <= PIECE_NO_NB)
+
+proc is_ok(pn: PieceNo): bool = (PIECE_NO_PAWN <= pn) and (pn <= PIECE_NO_NB) # PieceNoの整合性の検査。assert用。
 
 
 
