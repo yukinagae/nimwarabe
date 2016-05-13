@@ -9,8 +9,6 @@ const ENGINE_VERSION = "0.1"
 proc `<<`(a: int, b: int): int = a shl b ## 左シフト
 proc `>>`(a: int, b: int): int = a shr b ## 右シフト
 
-
-
 ## 手番
 type Color = enum BLACK, WHITE, COLOR_ALL ## BLACK: 先手, WHITE: 後手, COLOR_ALL: 先後共通の何か
 proc `~`(c: Color): int = c.ord and 1 ## 相手番を返す
@@ -142,6 +140,17 @@ proc is_ok(pc: Piece): bool = (NO_PIECE <= pc) and (pc <= QUEEN)
 
 ## ColorPieceの整合性の検査。assert用。
 proc is_ok(cpc: ColorPiece): bool = (B_PAWN <= cpc) and (cpc <= W_QUEEN)
+
+## 駒箱
+
+## Positionクラスで用いる、駒リスト(どの駒がどこにあるのか)を管理するときの番号。
+type PieceNo = enum PIECE_NO_PAWN = 0, PIECE_NO_LANCE = 18, PIECE_NO_KNIGHT = 22, PIECE_NO_SILVER = 26,
+                    PIECE_NO_GOLD = 30, PIECE_NO_BISHOP = 34, PIECE_NO_ROOK = 36, PIECE_NO_KING = 38, 
+                    # PIECE_NO_BKING = 38, PIECE_NO_WKING = 39, # 先手、後手の玉の番号が必要な場合はこっちを用いる
+                    PIECE_NO_NB = 40
+                    
+## PieceNoの整合性の検査。assert用。
+proc is_ok(pn: PieceNo): bool = (PIECE_NO_PAWN <= pn) and (pn <= PIECE_NO_NB)
 
 # 動作確認テスト
 echo ENGINE_VERSION
