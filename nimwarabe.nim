@@ -5,6 +5,10 @@
 ## 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
 const ENGINE_VERSION = "0.1"
 
+## pretty表示時に、日本語表記にするかどうかのフラグ(USI形式ではない)
+const pretty_jp = true
+
+
 ##
 ## util
 ##
@@ -119,25 +123,27 @@ proc `|`(f: File, r: Rank): Square = Square(f.ord * 9 + r.ord) # 筋(File)と段
 ##
 # 金の順番を飛の後ろにしておく。KINGを8にしておく。
 # こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
-type Piece = enum NO_PIECE, PAWN, LANCE, KNIGHT, SILVER, BISHOP, ROOK, GOLD,
+type RawPiece = enum NO_PIECE, PAWN, LANCE, KNIGHT, SILVER, BISHOP, ROOK, GOLD,
                   KING, PRO_PAWN, PRO_LANCE, PRO_KNIGHT, PRO_SILVER, HORSE, DRAGON, QUEEN
+# 以下、先後の区別のある駒(Bがついているのは先手、Wがついているのは後手)
 type ColorPiece = enum B_PAWN = 1 , B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROOK, B_GOLD , B_KING, B_PRO_PAWN, B_PRO_LANCE, B_PRO_KNIGHT, B_PRO_SILVER, B_HORSE, B_DRAGON, B_QUEEN,
-                       W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD , W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_QUEEN,
+                       W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD , W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_QUEEN
+type Piece = Piece | ColorPiece
+
 const PIECE_PROMOTE = 8 # 成り駒と非成り駒との差(この定数を足すと成り駒になる)
 const PIECE_WHITE = 16 # これを先手の駒に加算すると後手の駒になる。
 
 proc usi_piece(pc: Piece): string = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k".substr(pc.ord * 2, pc.ord * 2 + 1) # USIプロトコルで駒を表す文字列を返す。
-proc color_of(cpc: ColorPiece): Color = return if (cpc.ord and PIECE_WHITE) > 0: WHITE else: BLACK # 駒に対して、それが先後、どちらの手番の駒であるかを返す。
-proc type_of(cpc: ColorPiece): Piece = Piece(cpc.ord and 15) # 後手の歩→先手の歩のように、後手という属性を取り払った駒種を返す
+proc color_of(pc: Piece): Color = return if (pc.ord and PIECE_WHITE) > 0: WHITE else: BLACK # 駒に対して、それが先後、どちらの手番の駒であるかを返す。
+proc type_of(pc: Piece): Piece = Piece(pc.ord and 15) # 後手の歩→先手の歩のように、後手という属性を取り払った駒種を返す
 
 # 成ってない駒を返す。後手という属性も消去する。
 # 例) 成銀→銀 , 後手の馬→先手の角
 # ただし、pc == KINGでの呼び出しはNO_PIECEが返るものとする。
-proc raw_type_of(cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord and 7)
-proc make_piece(c: Color, cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord + (c.ord << 4)) # pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
+proc raw_type_of(pc: Piece): Piece = Piece(pc.ord and 7)
+proc make_piece(c: Color, pt: Piece): Piece = Piece(pt.ord + (c.ord << 4)) # pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
 proc has_long_effect(pc: Piece): bool = (pc == LANCE) or (((pc.ord + 1) and 6) == 6) # pcが遠方駒であるかを判定する。LANCE,BISHOP(5),ROOK(6),HORSE(13),DRAGON(14)
-proc is_ok(pc: Piece): bool = (NO_PIECE <= pc) and (pc <= QUEEN) # Pieceの整合性の検査。assert用。
-proc is_ok(cpc: ColorPiece): bool = (B_PAWN <= cpc) and (cpc <= W_QUEEN) # ColorPieceの整合性の検査。assert用。
+proc is_ok(pc: Piece): bool = (NO_PIECE <= pc) and (pc <= W_QUEEN) # Pieceの整合性の検査。assert用。
 
 ##
 ## 駒箱
@@ -154,13 +160,44 @@ proc is_ok(pn: PieceNo): bool = (PIECE_NO_PAWN <= pn) and (pn <= PIECE_NO_NB) # 
 ## 指し手
 ##
 # 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
-type Move = enum MOVE_NONE    = 0,            # 無効な移動
-                 MOVE_NULL    = (1 << 7) + 1, # NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
-                 MOVE_RESIGN  = (2 << 7) + 2, # << で出力したときに"resign"と表示する投了を意味する指し手。
-                 MOVE_WIN     = (3 << 7) + 3, # 入玉時の宣言勝ちのために使う特殊な指し手
-                 MOVE_DROP    = 1 << 14,      # 駒打ちフラグ
-                 MOVE_PROMOTE = 1 << 15       # 駒成りフラグ
+type Move = uint16
+const MOVE_NONE    = 0            # 無効な移動
+const MOVE_NULL    = (1 << 7) + 1 # NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
+const MOVE_RESIGN  = (2 << 7) + 2 # << で出力したときに"resign"と表示する投了を意味する指し手。
+const MOVE_WIN     = (3 << 7) + 3 # 入玉時の宣言勝ちのために使う特殊な指し手
+const MOVE_DROP    = 1 << 14      # 駒打ちフラグ
+const MOVE_PROMOTE = 1 << 15      # 駒成りフラグ
 
+proc move_from(m: Move): Square = Square((m.ord >> 7) and 127) # 指し手の移動元の升を返す
+proc move_to(m: Move): Square = Square(m.ord and 127) # 指し手の移動先の升を返す
+proc is_drop(m: Move): bool = (m.ord and MOVE_DROP.ord) != 0 # 指し手が駒打ちか？
+proc is_promote(m: Move): bool = (m.ord and MOVE_PROMOTE.ord) != 0 # 指し手が成りか？
+proc move_dropped_piece(m: Move) = echo "TODO" # 駒打ち(is_drop()==true)のときの打った駒
+proc make_move(from_sq: Square, to_sq: Square): Move = Move(to_sq.ord + (from_sq.ord << 7)) # fromからtoに移動する指し手を生成して返す
+proc make_move_promote(from_sq: Square, to_sq: Square): Move = Move(to_sq.ord + (from_sq.ord << 7) + MOVE_PROMOTE.ord) # fromからtoに移動する、成りの指し手を生成して返す
+proc make_move_drop(pt: Piece, to: Square): Move = Move(to + (pt.ord << 7) + MOVE_DROP.ord) # Pieceをtoに打つ指し手を生成して返す
+
+# 指し手がおかしくないかをテストする
+# ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。
+# これら２つの定数は、移動元と移動先が等しい値になっている。このテストだけをする。
+# return move_from(m)!=move_to(m);
+# とやりたいところだが、駒打ちでfromのbitを使ってしまっているのでそれだとまずい。
+# 駒打ちのbitも考慮に入れるために次のように書く。
+proc is_ok(m: Move): bool = (m.ord << 7) != (m.ord and 127)
+
+##
+## pretty
+##
+import strutils
+# Fileを綺麗に出力する(USI形式ではない)
+# pretty_jpがtrueならば、日本語文字での表示になる。例 → ８
+# pretty_jpがfalseならば、数字のみの表示になる。例 → 8
+proc pretty(f: File): string = return if pretty_jp: "１２３４５６７８９".substr(f.ord * 2, 2) else: (f.ord + 1).intToStr
+
+# Rankを綺麗に出力する(USI形式ではない)
+# pretty_jpがtrueならば、日本語文字での表示になる。例 → 八
+# pretty_jpがfalseならば、数字のみの表示になる。例 → 8
+proc pretty(r: Rank): string = return if pretty_jp: "一二三四五六七八九".substr(r.ord * 2, 2) else: (r.ord + 1).intToStr
 
 # 動作確認テスト
 echo ENGINE_VERSION
