@@ -5,39 +5,49 @@
 ## 思考エンジンのバージョンとしてUSIプロトコルの"usi"コマンドに応答するときの文字列
 const ENGINE_VERSION = "0.1"
 
+##
 ## util
-proc `<<`(a: int, b: int): int = a shl b ## 左シフト
-proc `>>`(a: int, b: int): int = a shr b ## 右シフト
+##
+proc `<<`(a: int, b: int): int = a shl b # 左シフト
+proc `>>`(a: int, b: int): int = a shr b # 右シフト
 
+##
 ## 手番
-type Color = enum BLACK, WHITE, COLOR_ALL ## BLACK: 先手, WHITE: 後手, COLOR_ALL: 先後共通の何か
-proc `~`(c: Color): int = c.ord and 1 ## 相手番を返す
-proc is_ok(c: Color): bool = (BLACK <= c) and (c <= COLOR_ALL) ## 正常な値であるかを検査する。assertで使う用。
-proc p(c: Color) = echo c ## 出力用(USI形式ではない)　デバッグ用。
+##
+type Color = enum BLACK, WHITE, COLOR_ALL # BLACK: 先手, WHITE: 後手, COLOR_ALL: 先後共通の何か
+proc `~`(c: Color): int = c.ord and 1 # 相手番を返す
+proc is_ok(c: Color): bool = (BLACK <= c) and (c <= COLOR_ALL) # 正常な値であるかを検査する。assertで使う用。
+proc p(c: Color) = echo c # 出力用(USI形式ではない)　デバッグ用。
 
+##
 ## 筋
-type File = enum FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 ## 例) FILE_3なら3筋。
-proc is_ok(f: FIle): bool = (FILE_1 <= f) and (f <= FILE_9) ## 正常な値であるかを検査する。assertで使う用。
-proc to_file(c: char): File = File(c.ord - '1'.ord) ## USIの指し手文字列などで筋を表す文字列をここで定義されたFileに変換する。(1~9)
-proc p(f: File) = echo 1 + f.ord ## USI形式でFileを出力する
+##
+type File = enum FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 # 例) FILE_3なら3筋。
+proc is_ok(f: FIle): bool = (FILE_1 <= f) and (f <= FILE_9) # 正常な値であるかを検査する。assertで使う用。
+proc to_file(c: char): File = File(c.ord - '1'.ord) # USIの指し手文字列などで筋を表す文字列をここで定義されたFileに変換する。(1~9)
+proc p(f: File) = echo 1 + f.ord # USI形式でFileを出力する
 
+##
 ## 段
-type Rank = enum RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9 ## 例) RANK_4なら4段目。
-proc is_ok(r: Rank): bool = (RANK_1 <= r) and (r <= RANK_9) ## 正常な値であるかを検査する。assertで使う用。
+##
+type Rank = enum RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9 # 例) RANK_4なら4段目。
+proc is_ok(r: Rank): bool = (RANK_1 <= r) and (r <= RANK_9) # 正常な値であるかを検査する。assertで使う用。
 
-## 移動元、もしくは移動先の升のrankを与えたときに、そこが成れるかどうかを判定する。
-## 先手9bit(9段) + 後手9bit(9段) = 18bitのbit列に対して、判定すればいい。
-## ただし ×9みたいな掛け算をするのは嫌なのでbit shiftで済むように先手16bit、後手16bitの32bitのbit列に対して判定する。
+# 移動元、もしくは移動先の升のrankを与えたときに、そこが成れるかどうかを判定する。
+# 先手9bit(9段) + 後手9bit(9段) = 18bitのbit列に対して、判定すればいい。
+# ただし ×9みたいな掛け算をするのは嫌なのでbit shiftで済むように先手16bit、後手16bitの32bitのbit列に対して判定する。
 proc can_promote(c: Color, fromOrToRank: Rank): bool = true # FIXME echo (0x1c00007 and (1 shl ((c.ord shl 4) + fromOrToRank.ord)))
 
-proc relative_rank(c: Color, r: Rank): Rank = return if c == BLACK: r else: Rank(8 - r.ord) ## 後手の段なら先手から見た段を返す。 例) relative_rank(WHITE,RANK_1) == RANK_9
-proc to_rank(c: char): Rank = Rank(c.ord - 'a'.ord) ## USIの指し手文字列などで段を表す文字列をここで定義されたRankに変換する。(a~i)
-proc p(r: Rank) = echo char('a'.ord + r.ord) ## USI形式でRankを出力する
+proc relative_rank(c: Color, r: Rank): Rank = return if c == BLACK: r else: Rank(8 - r.ord) # 後手の段なら先手から見た段を返す。 例) relative_rank(WHITE,RANK_1) == RANK_9
+proc to_rank(c: char): Rank = Rank(c.ord - 'a'.ord) # USIの指し手文字列などで段を表す文字列をここで定義されたRankに変換する。(a~i)
+proc p(r: Rank) = echo char('a'.ord + r.ord) # USI形式でRankを出力する
 
+##
 ## 升目
+##
 
-##  盤上の升目に対応する定数。
-## 盤上右上(１一が0)、左下(９九)が80
+#  盤上の升目に対応する定数。
+# 盤上右上(１一が0)、左下(９九)が80
 type Square = enum SQ_11, SQ_12, SQ_13, SQ_14, SQ_15, SQ_16, SQ_17, SQ_18, SQ_19,
                    SQ_21, SQ_22, SQ_23, SQ_24, SQ_25, SQ_26, SQ_27, SQ_28, SQ_29,
                    SQ_31, SQ_32, SQ_33, SQ_34, SQ_35, SQ_36, SQ_37, SQ_38, SQ_39,
@@ -48,13 +58,13 @@ type Square = enum SQ_11, SQ_12, SQ_13, SQ_14, SQ_15, SQ_16, SQ_17, SQ_18, SQ_19
                    SQ_81, SQ_82, SQ_83, SQ_84, SQ_85, SQ_86, SQ_87, SQ_88, SQ_89,
                    SQ_91, SQ_92, SQ_93, SQ_94, SQ_95, SQ_96, SQ_97, SQ_98, SQ_99
 
-## 方角に関する定数。N=北=盤面の下を意味する。
+# 方角に関する定数。N=北=盤面の下を意味する。
 const SQ_D = +1 # 下(Down)
 const SQ_R = -9 # 右(Right)
 const SQ_U = -1 # 上(Up)
 const SQ_L = +9 # 左(Left)
 
-## 斜めの方角などを意味する定数。
+# 斜めの方角などを意味する定数。
 const SQ_RU  = SQ_U  + SQ_R # 右上(Right Up)
 const SQ_RD  = SQ_D  + SQ_R # 右下(Right Down)
 const SQ_LU  = SQ_U  + SQ_L # 左上(Left Up)
@@ -64,11 +74,13 @@ const SQ_LUU = SQ_LU + SQ_U # 左上上
 const SQ_RDD = SQ_RD + SQ_D # 右下下
 const SQ_LDD = SQ_LD + SQ_D # 左下下
 
-## sqが盤面の内側を指しているかを判定する。assert()などで使う用。
-## 駒は駒落ちのときにSQ_NBに移動するので、値としてSQ_NBは許容する。
+# sqが盤面の内側を指しているかを判定する。assert()などで使う用。
+# 駒は駒落ちのときにSQ_NBに移動するので、値としてSQ_NBは許容する。
 proc is_ok(sq: Square): bool = (SQ_11 <= sq) and (sq <= SQ_99)
 
+##
 ## table
+##
 const SquareToFile: array[SQ_11..SQ_99, File] = [
     FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1,
     FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2,
@@ -93,8 +105,8 @@ const SquareToRank: array[SQ_11..SQ_99, Rank] = [
     RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9
 ]
 
-## 与えられたSquareに対応する筋を返す。
-## →　行数は長くなるが速度面においてテーブルを用いる。
+# 与えられたSquareに対応する筋を返す。
+# →　行数は長くなるが速度面においてテーブルを用いる。
 proc file_of(sq: Square): File = SquareToFile[sq]
 
 ## 与えられたSquareに対応する段を返す。
@@ -151,6 +163,8 @@ type PieceNo = enum PIECE_NO_PAWN = 0, PIECE_NO_LANCE = 18, PIECE_NO_KNIGHT = 22
                     
 ## PieceNoの整合性の検査。assert用。
 proc is_ok(pn: PieceNo): bool = (PIECE_NO_PAWN <= pn) and (pn <= PIECE_NO_NB)
+
+
 
 # 動作確認テスト
 echo ENGINE_VERSION
