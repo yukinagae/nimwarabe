@@ -134,5 +134,14 @@ proc raw_type_of(cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord and 7)
 ## pcとして先手の駒を渡し、cが後手なら後手の駒を返す。cが先手なら先手の駒のまま。pcとしてNO_PIECEは渡してはならない。
 proc make_piece(c: Color, cpc: ColorPiece): ColorPiece = ColorPiece(cpc.ord + (c.ord << 4))
 
+## pcが遠方駒であるかを判定する。LANCE,BISHOP(5),ROOK(6),HORSE(13),DRAGON(14)
+proc has_long_effect(pc: Piece): bool = (pc == LANCE) or (((pc.ord + 1) and 6) == 6)
+
+## Pieceの整合性の検査。assert用。
+proc is_ok(pc: Piece): bool = (NO_PIECE <= pc) and (pc <= QUEEN)
+
+## ColorPieceの整合性の検査。assert用。
+proc is_ok(cpc: ColorPiece): bool = (B_PAWN <= cpc) and (cpc <= W_QUEEN)
+
 # 動作確認テスト
 echo ENGINE_VERSION
