@@ -151,6 +151,17 @@ type PieceNo = enum PIECE_NO_PAWN = 0, PIECE_NO_LANCE = 18, PIECE_NO_KNIGHT = 22
 
 proc is_ok(pn: PieceNo): bool = (PIECE_NO_PAWN <= pn) and (pn <= PIECE_NO_NB) # PieceNoの整合性の検査。assert用。
 
+##
+## 指し手
+##
+
+# 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
+type Move = enum MOVE_NONE    = 0,            # 無効な移動
+                 MOVE_NULL    = (1 << 7) + 1, # NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
+                 MOVE_RESIGN  = (2 << 7) + 2, # << で出力したときに"resign"と表示する投了を意味する指し手。
+                 MOVE_WIN     = (3 << 7) + 3, # 入玉時の宣言勝ちのために使う特殊な指し手
+                 MOVE_DROP    = 1 << 14,      # 駒打ちフラグ
+                 MOVE_PROMOTE = 1 << 15       # 駒成りフラグ
 
 
 # 動作確認テスト
