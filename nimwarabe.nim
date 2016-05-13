@@ -185,6 +185,47 @@ proc make_move_drop(pt: Piece, to: Square): Move = Move(to + (pt.ord << 7) + MOV
 # 駒打ちのbitも考慮に入れるために次のように書く。
 proc is_ok(m: Move): bool = (m.ord << 7) != (m.ord and 127)
 
+
+##
+## 手駒
+##
+# 歩の枚数を8bit、香、桂、銀、角、飛、金を4bitずつで持つ。こうすると16進数表示したときに綺麗に表示される。(なのはのアイデア)
+type Hand = uint32
+const HAND_ZERO: Hand = 0
+
+##
+## 指し手生成器
+##
+# 将棋のある局面の合法手の最大数。593らしいが、保険をかけて少し大きめにしておく。
+const MAX_MOVES = 600
+
+# 生成する指し手の種類
+# LEGAL/LEGAL_ALL以外は自殺手が含まれることがある(pseudo-legal)ので、do_moveの前にPosition::legal()でのチェックが必要。
+type MOVE_GEN_TYPE = enum
+    NON_CAPTURES,           # 駒を取らない指し手
+    CAPTURES,               # 駒を取る指し手
+    CAPTURES_PRO_PLUS,      # CAPTURES + 価値のかなりあると思われる成り(歩だけ)
+    NON_CAPTURES_PRO_MINUS, # NON_CAPTURES - 価値のかなりあると思われる成り(歩だけ)
+    # BonanzaではCAPTURESに銀以外の成りを含めていたが、Aperyでは歩の成り以外は含めない。
+    # あまり変な成りまで入れるとオーダリングを阻害する。
+    # 本ソースコードでは、NON_CAPTURESとCAPTURESは使わず、CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSを使う。
+    # note : NON_CAPTURESとCAPTURESとの生成される指し手の集合は被覆していない。
+    # note : CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSとの生成される指し手の集合も被覆していない。
+    # →　被覆させないことで、二段階に指し手生成を分解することが出来る。
+    EVASIONS ,              # 王手の回避(指し手生成元で王手されている局面であることがわかっているときはこちらを呼び出す)
+    EVASIONS_ALL,           # EVASIONS + 歩の不成なども含む。
+    NON_EVASIONS,           # 王手の回避ではない手(指し手生成元で王手されていない局面であることがわかっているときのすべての指し手)
+    NON_EVASIONS_ALL,       # NON_EVASIONS + 歩の不成などを含む。
+    # 以下の2つは、pos.legalを内部的に呼び出すので生成するのに時間が少しかかる。棋譜の読み込み時などにしか使わない。
+    LEGAL,                  # 合法手すべて。ただし、2段目の歩・香の不成や角・飛の不成は生成しない。
+    LEGAL_ALL,              # 合法手すべて
+    CHECKS,                 # 王手となる指し手(歩の不成などは含まない)
+    CHECKS_ALL,             # 王手となる指し手(歩の不成なども含む)
+    QUIET_CHECKS,           # 王手となる指し手(歩の不成などは含まない)で、CAPTURESの指し手は含まない指し手
+    QUIET_CHECKS_ALL,       # 王手となる指し手(歩の不成なども含む)でCAPTURESの指し手は含まない指し手
+    RECAPTURES,             # 指定升への移動の指し手のみを生成する。(歩の不成などは含まない)
+    RECAPTURES_ALL          # 指定升への移動の指し手のみを生成する。(歩の不成なども含む)
+
 ##
 ## pretty
 ##
