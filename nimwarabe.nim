@@ -260,7 +260,16 @@ proc pretty(m: Move): string =
             return pretty(move_from(m)) & pretty(move_to(m)) & "+"
         else:
             return pretty(move_from(m)) & pretty(move_to(m))
-        
+
+# 移動させた駒がわかっているときに指し手をわかりやすい表示形式で表示する。
+proc pretty(m: Move, movedPieceType: RawPiece): string =
+    if is_drop(m):
+        return pretty(move_to(m)) & pretty(movedPieceType) & "*"
+    else:
+        if is_promote(m):
+            return pretty(move_to(m)) & pretty(movedPieceType) & "+" & "[" & pretty(move_from(m)) & "]"
+        else:
+            return pretty(move_to(m)) & pretty(movedPieceType) & "[" & pretty(move_from(m)) & "]"
 
 # 動作確認テスト
 echo ENGINE_VERSION
