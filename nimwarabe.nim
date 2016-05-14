@@ -246,7 +246,7 @@ proc pretty(r: Rank): string = return if pretty_jp: "一二三四五六七八九
 proc pretty(sq: Square): string = pretty(file_of(sq)) & pretty(rank_of(sq))
 
 # Pieceを綺麗に出力する(USI形式ではない) 先手の駒は大文字、後手の駒は小文字、成り駒は先頭に+がつく。盤面表示に使う。
-#proc pretty(pc: Piece): string = usi_piece(pc) #USI_PIECE.substr(pc.ord * 2, 2)
+proc pretty(pc: Piece): string = usi_piece(pc)
 
 # ↑のpretty()だと先手の駒を表示したときに先頭にスペースが入るので、それが嫌な場合はこちらを用いる。
 # FIXME proc pretty2(pc: Piece): string = pretty(pc).substr(1, )
