@@ -128,7 +128,7 @@ type RawPiece = enum NO_PIECE, PAWN, LANCE, KNIGHT, SILVER, BISHOP, ROOK, GOLD,
 # 以下、先後の区別のある駒(Bがついているのは先手、Wがついているのは後手)
 type ColorPiece = enum B_PAWN = 1 , B_LANCE, B_KNIGHT, B_SILVER, B_BISHOP, B_ROOK, B_GOLD , B_KING, B_PRO_PAWN, B_PRO_LANCE, B_PRO_KNIGHT, B_PRO_SILVER, B_HORSE, B_DRAGON, B_QUEEN,
                        W_PAWN = 17, W_LANCE, W_KNIGHT, W_SILVER, W_BISHOP, W_ROOK, W_GOLD , W_KING, W_PRO_PAWN, W_PRO_LANCE, W_PRO_KNIGHT, W_PRO_SILVER, W_HORSE, W_DRAGON, W_QUEEN
-type Piece = Piece | ColorPiece
+type Piece = RawPiece | ColorPiece
 
 const PIECE_PROMOTE = 8 # 成り駒と非成り駒との差(この定数を足すと成り駒になる)
 const PIECE_WHITE = 16 # これを先手の駒に加算すると後手の駒になる。
