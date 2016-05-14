@@ -251,15 +251,14 @@ proc pretty(pc: Piece): string = usi_piece(pc)
 # ↑のpretty()だと先手の駒を表示したときに先頭にスペースが入るので、それが嫌な場合はこちらを用いる。
 # FIXME proc pretty2(pc: Piece): string = pretty(pc).substr(1, )
 
-#proc pretty(m: Move): string =
-#    if is_drop(m):
-#        return "a"
-#        #return pretty(move_to(m)) & pretty(Piece(move_from(m).ord)) & "*"
-#    else:
-#        if is_promote(m):
-#            return pretty(move_from(m)) & pretty(move_to(m)) & "+"
-#        else:
-#            return pretty(move_from(m)) & pretty(move_to(m))
+proc pretty(m: Move): string =
+    if is_drop(m):
+        return pretty(move_to(m)) & pretty(RawPiece(move_from(m).ord)) & "*"
+    else:
+        if is_promote(m):
+            return pretty(move_from(m)) & pretty(move_to(m)) & "+"
+        else:
+            return pretty(move_from(m)) & pretty(move_to(m))
         
 
 # 動作確認テスト
