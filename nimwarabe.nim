@@ -271,5 +271,43 @@ proc pretty(m: Move, movedPieceType: RawPiece): string =
         else:
             return pretty(move_to(m)) & pretty(movedPieceType) & "[" & pretty(move_from(m)) & "]"
 
+
+##
+## Bitboard
+##
+type Bitboard = ref object of RootObj
+    p: array[2, int64]
+    
+# p0にはSQ11~SQ79を格納
+# p1にはSQ81~99を格納
+proc newBitboard(p0: int64, p1: int64): Bitboard = Bitboard(p: [p0, p1])
+
+proc bb(b: int64, size: int) =
+    var r = b
+    for i in countup(0, 8):
+        r = r shr (i * size)
+        echo r.toBin(size)
+
+proc bb1(b: int64) = bb(b, 7)
+proc bb2(b: int64) = bb(b, 2)
+
+proc p(b: Bitboard) = 
+    echo "[p0]"
+    b.p[0].bb1()
+    echo "[p1]"
+    b.p[1].bb2()
+
+#proc toBin(p: int64) = 
+
 # 動作確認テスト
 echo ENGINE_VERSION
+
+var a = 4'i64
+var b = 2'i64
+var board: Bitboard = Bitboard(p: [a, b])
+p board
+
+
+# main()
+
+# 全体的な初期化
