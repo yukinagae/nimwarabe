@@ -61,6 +61,10 @@ type Square = enum SQ_11, SQ_12, SQ_13, SQ_14, SQ_15, SQ_16, SQ_17, SQ_18, SQ_19
                    SQ_81, SQ_82, SQ_83, SQ_84, SQ_85, SQ_86, SQ_87, SQ_88, SQ_89,
                    SQ_91, SQ_92, SQ_93, SQ_94, SQ_95, SQ_96, SQ_97, SQ_98, SQ_99
 
+const SQ_ZERO = 0 # ゼロ
+const SQ_NB = 81 # 末尾
+const SQ_NB_PLUS1 = SQ_NB + 1 # 玉がいない場合、SQ_NBに移動したものとして扱うため、配列をSQ_NB+1で確保しないといけないときがあるのでこの定数を用いる。
+
 # 方角に関する定数。N=北=盤面の下を意味する。
 const SQ_D = +1 # 下(Down)
 const SQ_R = -9 # 右(Right)
@@ -161,12 +165,12 @@ proc is_ok(pn: PieceNo): bool = (PIECE_NO_PAWN <= pn) and (pn <= PIECE_NO_NB) # 
 ##
 # 指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
 type Move = uint16
-const MOVE_NONE    = 0            # 無効な移動
-const MOVE_NULL    = (1 << 7) + 1 # NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
-const MOVE_RESIGN  = (2 << 7) + 2 # << で出力したときに"resign"と表示する投了を意味する指し手。
-const MOVE_WIN     = (3 << 7) + 3 # 入玉時の宣言勝ちのために使う特殊な指し手
-const MOVE_DROP    = 1 << 14      # 駒打ちフラグ
-const MOVE_PROMOTE = 1 << 15      # 駒成りフラグ
+const MOVE_NONE: Move    = Move(0)            # 無効な移動
+const MOVE_NULL: Move    = Move((1 << 7) + 1) # NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
+const MOVE_RESIGN: Move  = Move((2 << 7) + 2) # << で出力したときに"resign"と表示する投了を意味する指し手。
+const MOVE_WIN: Move     = Move((3 << 7) + 3) # 入玉時の宣言勝ちのために使う特殊な指し手
+const MOVE_DROP: Move    = Move(1 << 14)      # 駒打ちフラグ
+const MOVE_PROMOTE: Move = Move(1 << 15)      # 駒成りフラグ
 
 proc move_from(m: Move): Square = Square((m.ord >> 7) and 127) # 指し手の移動元の升を返す
 proc move_to(m: Move): Square = Square(m.ord and 127) # 指し手の移動先の升を返す
@@ -226,6 +230,81 @@ type MOVE_GEN_TYPE = enum
     RECAPTURES,             # 指定升への移動の指し手のみを生成する。(歩の不成などは含まない)
     RECAPTURES_ALL          # 指定升への移動の指し手のみを生成する。(歩の不成なども含む)
 
+
+# TODO ここよくわからないので、あとでちゃんと読む
+##
+## 壁つきの升表現
+##
+# This trick is invented by yaneurao in 2016.
+# 長い利きを更新するときにある升からある方向に駒にぶつかるまでずっと利きを更新していきたいことがあるが、
+# sqの升が盤外であるかどうかを判定する簡単な方法がない。そこで、Squareの表現を拡張して盤外であることを検出
+# できるようにする。
+# bit 0..7   : Squareと同じ意味
+# bit 8      : Squareからのborrow用に1にしておく
+# bit 9..13  : いまの升から盤外まで何升右に升があるか(ここがマイナスになるとborrowでbit13が1になる)
+# bit 14..18 : いまの升から盤外まで何升上に(略
+# bit 19..23 : いまの升から盤外まで何升下に(略
+# bit 24..28 : いまの升から盤外まで何升左に(略
+# 相対移動するときの差分値
+type SquareWithWall = int
+
+const SQWW_U: SquareWithWall           = SQ_U - (1 << 14) + (1 << 19)
+const SQWW_R: SquareWithWall           = SQ_R - (1 << 9) + (1 << 24)
+const SQWW_L: SquareWithWall           = -int(SQWW_R)
+const SQWW_D: SquareWithWall           = -int(SQWW_U)
+const SQWW_RU: SquareWithWall          = int(SQWW_R) + int(SQWW_U)
+const SQWW_RD: SquareWithWall          = int(SQWW_R) + int(SQWW_D)
+const SQWW_LU: SquareWithWall          = int(SQWW_L) + int(SQWW_U)
+const SQWW_LD: SquareWithWall          = int(SQWW_L) + int(SQWW_D)
+const SQWW_11: SquareWithWall          = int(SQ_11) or (1 << 8) or (0 << 9) or (0 << 14) or (8 << 19) or (8 << 24) # SQ_11の地点に対応する値(他の升はこれ相対で事前に求めテーブルに格納)
+const SQWW_BORROW_MASK: SquareWithWall = (1 << 13) or (1 << 18) or (1 << 23) or (1 << 28) # SQWW_RIGHTなどを足して行ったときに盤外に行ったときのborrow bitの集合
+
+const SquareWithWalls = [SQWW_U, SQWW_R, SQWW_L, SQWW_D, SQWW_RU, SQWW_RD, SQWW_LU, SQWW_LD, SQWW_11, SQWW_BORROW_MASK]
+
+##
+## 方角
+##
+# Long Effect Libraryの一部。これは8近傍、24近傍の利きを直列化したり方角を求めたりするライブラリ。
+# ここではその一部だけを持って来た。(これらは頻繁に用いるので)
+
+# 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
+# bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
+# 同時に複数のbitが1であることがありうる。
+type Directions = enum DIRECTIONS_ZERO = 0,
+                       DIRECTIONS_RU   = 1,
+                       DIRECTIONS_R    = 2,
+                       DIRECTIONS_RD   = 4,
+                       DIRECTIONS_U    = 8,
+                       DIRECTIONS_D    = 16,
+                       DIRECTIONS_LU   = 32,
+                       DIRECTIONS_L    = 64,
+                       DIRECTIONS_LD   = 128,
+
+# Directionsをpopしたもの。複数の方角を同時に表すことはない。
+# おまけで桂馬の移動も追加しておく。
+type Direct = enum DIRECT_RU,
+                   DIRECT_R,
+                   DIRECT_RD,
+                   DIRECT_U,
+                   DIRECT_D,
+                   DIRECT_LU,
+                   DIRECT_L,
+                   DIRECT_LD,
+                   DIRECT_RUU,
+                   DIRECT_LUU,
+                   DIRECT_RDD,
+                   DIRECT_LDD,
+                   DIRECT_NB_PLUS4,
+const DIRECT_NB = 8
+const DIRECT_ZERO = 0
+
+# DirectをSquareWithWall型の差分値で表現したもの。
+const DirectToDeltaWW = [SQWW_RU, SQWW_R, SQWW_RD, SQWW_U, SQWW_D, SQWW_LU, SQWW_L, SQWW_LD]
+proc directToDeltaWW(d: Direct): SquareWithWall = DirectToDeltaWW[d.ord]
+
+# DirectからDirectionsへの逆変換
+proc to_directions(d: Direct): Directions = Directions(1 << d.ord)
+
 ##
 ## pretty
 ##
@@ -280,7 +359,12 @@ type Bitboard = ref object of RootObj
     
 # p0にはSQ11~SQ79を格納
 # p1にはSQ81~99を格納
-proc newBitboard(p0: int64, p1: int64): Bitboard = Bitboard(p: [p0, p1])
+proc new(p0: int64, p1: int64): Bitboard = Bitboard(p: [p0, p1])
+
+# 値を直接代入する。
+proc set(b: Bitboard, p0: int64, p1: int64) = 
+    b.p[0] = p0
+    b.p[1] = p1
 
 proc bb(b: int64, size: int) =
     var r = b
@@ -291,23 +375,55 @@ proc bb(b: int64, size: int) =
 proc bb1(b: int64) = bb(b, 7)
 proc bb2(b: int64) = bb(b, 2)
 
+proc pretty(b: Bitboard) = echo "[p0] " , b.p[0], "\n", "[p1] ", b.p[1]
+
 proc p(b: Bitboard) = 
     echo "[p0]"
     b.p[0].bb1()
     echo "[p1]"
     b.p[1].bb2()
 
-#proc toBin(p: int64) = 
+##
+## 動作確認テスト
+##
 
-# 動作確認テスト
-echo ENGINE_VERSION
+## Bitboard tables
+## sqの升が1であるbitboard
+var SquareBB: array[SQ_NB_PLUS1, Bitboard];
 
-var a = 4'i64
-var b = 2'i64
-var board: Bitboard = Bitboard(p: [a, b])
-p board
+##
+##Bitboard関係のテーブルの初期化
+##
+# 1) SquareWithWallテーブルの初期化。
+var sqww_table: array[SQ_NB_PLUS1, SquareWithWall]
+for sq in Square:
+    sqww_table[sq.ord] = SquareWithWall(SQWW_11 + file_of(sq).ord * SQWW_L + rank_of(sq).ord * SQWW_D)
+    
+# 型変換。下位8bit == Square
+proc to_sq(sqww: SquareWithWall): Square = Square(sqww.ord and 0xff)
+# 型変換。Square型から。
+proc to_sqww(sq: Square): SquareWithWall = sqww_table[sq.ord]
 
-
-# main()
-
-# 全体的な初期化
+# 盤内か。壁(盤外)だとfalseになる。
+proc is_ok(sqww: SquareWithWall): bool = (sqww and SQWW_BORROW_MASK) == 0
+    
+# 2) direct_tableの初期化
+var direc_table: array[SQ_NB_PLUS1, array[SQ_NB_PLUS1, Directions]]
+for sq1 in Square:
+    for dir in Direct(DIRECT_ZERO)..Direct(DIRECT_NB-1):
+        # dirの方角に壁にぶつかる(盤外)まで延長していく。このとき、sq1から見てsq2のDirectionsは (1 << dir)である。
+        let delta = directToDeltaWW(dir)
+        var sq2 = SquareWithWall(to_sqww(sq1).ord + delta.ord)
+        while is_ok(sq2):
+            direc_table[sq1.ord][to_sq(sq2).ord] = to_directions(dir)
+            sq2 = SquareWithWall(sq2.ord + delta.ord)
+            
+# 3) Square型のsqの指す升が1であるBitboardがSquareBB。これをまず初期化する。
+for sq in Square:
+    var r = sq.rank_of()
+    var f = sq.file_of()
+    SquareBB[sq.ord] = Bitboard()
+    if f <= FILE_7: SquareBB[sq.ord].p[0] = int64(1 << (f.ord * 9 + r.ord))
+    else: SquareBB[sq.ord].p[0] = 0
+    if f >= FILE_8: SquareBB[sq.ord].p[1] = (1 << ((f.ord - FILE_8.ord) * 9 + r.ord))
+    else: SquareBB[sq.ord].p[1] = 0
