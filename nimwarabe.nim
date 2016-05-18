@@ -14,6 +14,8 @@ const pretty_jp = false
 ##
 proc `<<`(a: int, b: int): int = a shl b # 左シフト
 proc `>>`(a: int, b: int): int = a shr b # 右シフト
+proc `<<`(a: int64, b: int64): int = int(a) shl int(b) # 左シフト
+proc `>>`(a: int64, b: int64): int = int(a) shr int(b) # 右シフト
 
 ##
 ## 手番
@@ -359,7 +361,7 @@ type Bitboard = ref object of RootObj
     
 # p0にはSQ11~SQ79を格納
 # p1にはSQ81~99を格納
-proc new(p0: int64, p1: int64): Bitboard = Bitboard(p: [p0, p1])
+proc bitboard(p0: int64, p1: int64): Bitboard = Bitboard(p: [p0, p1])
 
 # 値を直接代入する。
 proc set(b: Bitboard, p0: int64, p1: int64) = 
@@ -382,6 +384,16 @@ proc p(b: Bitboard) =
     b.p[0].bb1()
     echo "[p1]"
     b.p[1].bb2()
+
+#const ALL_BB = Bitboard(p: [0x7FFFFFFFFFFFFFFF, 0x3FFFF])
+let ALL_BB = Bitboard(p: [0x7FFFFFFFFFFFFFFF, 0x3FFFF])
+let ZERO_BB = Bitboard(p: [0'i64, 0'i64])
+
+#NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでALL_BBでxorしないといけない。
+proc `~`(a: Bitboard): Bitboard =
+    result = Bitboard()
+    result.p[0] = result.p[0] xor ALL_BB.p[0]
+    result.p[1] = not result.p[1]
     
 proc ffs(x: int64): int =
     if x == 0:
@@ -419,10 +431,33 @@ proc pop(b: Bitboard): Square =
 ##
 
 ## Bitboard tables
+let FILE1_BB = bitboard(0x1ff << (9 * 0), 0)
+let FILE2_BB = bitboard(0x1ff << (9 * 1), 0)
+let FILE3_BB = bitboard(0x1ff << (9 * 2), 0)
+let FILE4_BB = bitboard(0x1ff << (9 * 3), 0)
+let FILE5_BB = bitboard(0x1ff << (9 * 4), 0)
+let FILE6_BB = bitboard(0x1ff << (9 * 5), 0)
+let FILE7_BB = bitboard(0x1ff << (9 * 6), 0)
+let FILE8_BB = bitboard(0, 0x1ff << (9 * 0))
+let FILE9_BB = bitboard(0, 0x1ff << (9 * 1))
+
+let RANK1_BB = bitboard(0x40201008040201 << 0, 0x201 << 0)
+let RANK2_BB = bitboard(0x40201008040201 << 1, 0x201 << 1)
+let RANK3_BB = bitboard(0x40201008040201 << 2, 0x201 << 2)
+let RANK4_BB = bitboard(0x40201008040201 << 3, 0x201 << 3)
+let RANK5_BB = bitboard(0x40201008040201 << 4, 0x201 << 4)
+let RANK6_BB = bitboard(0x40201008040201 << 5, 0x201 << 5)
+let RANK7_BB = bitboard(0x40201008040201 << 6, 0x201 << 6)
+let RANK8_BB = bitboard(0x40201008040201 << 7, 0x201 << 7)
+let RANK9_BB = bitboard(0x40201008040201 << 8, 0x201 << 8)
+
+let FILE_BB = [FILE1_BB,FILE2_BB,FILE3_BB,FILE4_BB,FILE5_BB,FILE6_BB,FILE7_BB,FILE8_BB,FILE9_BB]
+let RANK_BB = [RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB,RANK6_BB,RANK7_BB,RANK8_BB,RANK9_BB]
+
 ## sqの升が1であるbitboard
 var SquareBB: array[SQ_NB_PLUS1, Bitboard]
 
-let ZERO_BB = Bitboard(p: [0'i64, 0'i64])
+proc newbb_by_sq(sq: Square): Bitboard = SquareBB[sq.ord]
 
 ##
 ##Bitboard関係のテーブルの初期化
@@ -469,7 +504,7 @@ proc indexToOccupied(index: int, bits: int, mask: Bitboard): Bitboard =
     let m = mask
     result = ZERO_BB
     for i in countup(0, (bits - 1)):
-        let sq: Square = mask.pop()
+        let sq: Square = m.pop()
         if (index and (1 << i)) > 0:
             if sq <= SQ_79: result.p[0] = result.p[0] xor sq.ord # 
             else: result.p[1] = result.p[1] xor sq.ord # 
@@ -498,3 +533,36 @@ proc effectCalc(square: Square, occupied: Bitboard, piece: Piece): Bitboard =
                     p occupied
                     break
             sqww = SquareWithWall(sqww.ord + delta.ord)
+
+# pieceをsqにおいたときに利きを得るのに関係する升を返す
+proc calcEffectMask(sq: Square, piece: Piece): Bitboard =
+    result = Bitboard()
+    if piece == BISHOP:
+        result = ZERO_BB;
+        for r in RANK_2..RANK_8:
+            for f in FILE_2..FILE_8:
+                # 外周は角の利きには関係ないのでそこは除外する。
+                if abs(rank_of(sq).ord - r.ord) == abs(file_of(sq).ord - f.ord):
+                    if sq <= SQ79: result.p[0] = result.p[0] xor (f.ord or r.ord)
+                    else: result.p[1] = result.p[1] xor (f.ord or r.ord)
+    else:
+        result.p[0] = RANK_BB[rank_of(sq).ord].p[0] xor FILE_BB[file_of(sq).ord].p[0]
+        result.p[1] = RANK_BB[rank_of(sq).ord].p[1] xor FILE_BB[file_of(sq).ord].p[1]
+        # 外周に居ない限り、その外周升は利きの計算には関係ない。
+        if file_of(sq) != FILE_1:
+            result.p[0] = result.p[0] and (~FILE1_BB).p[0]
+            result.p[1] = result.p[1] and (~FILE1_BB).p[1]
+        if file_of(sq) != FILE_9:
+            result.p[0] = result.p[0] and (~FILE9_BB).p[0]
+            result.p[1] = result.p[1] and (~FILE9_BB).p[0]
+        if rank_of(sq) != RANK_1:
+            result.p[0] = result.p[0] and (~RANK1_BB).p[0]
+            result.p[1] = result.p[1] and (~RANK1_BB).p[1]
+        if rank_of(sq) != RANK_9:
+            result.p[0] = result.p[0] and (~RANK9_BB).p[0]
+            result.p[1] = result.p[1] and (~RANK9_BB).p[1] 
+    # sqの地点は関係ないのでクリアしておく。
+    result.p[0] = result.p[0] and (~newbb_by_sq(sq)).p[0]
+    result.p[1] = result.p[1] and (~newbb_by_sq(sq)).p[1]
+
+var r = calcEffectMask(SQ_11, ROOK)
