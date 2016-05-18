@@ -382,6 +382,37 @@ proc p(b: Bitboard) =
     b.p[0].bb1()
     echo "[p1]"
     b.p[1].bb2()
+    
+proc ffs(x: int64): int =
+    if x == 0:
+        return 0
+    else:
+        var t = 1
+        result = 1
+        while (x and t) == 0:
+            t = t << 1
+            result = result + 1
+        
+    
+# 1である最下位bitを1bit取り出して、そのbit位置を返す。0を渡してはならない。
+proc pop_lsb(p: int64): int =
+    result = ffs(p)
+    discard p and (p - 1)
+
+# 下位bitから1bit拾ってそのbit位置を返す。
+# 絶対に1bitはnon zeroと仮定
+# while(to = bb.pop())
+#  make_move(from,to);
+# のように用いる。
+proc pop(b: Bitboard): Square =
+    if b.p[0] != 0:
+        let p = pop_lsb(b.p[0])
+        b.p[0] = p
+        Square(p)
+    else:
+        let p = pop_lsb(b.p[1])
+        b.p[1] = p
+        Square(p)
 
 ##
 ## 動作確認テスト
@@ -389,7 +420,9 @@ proc p(b: Bitboard) =
 
 ## Bitboard tables
 ## sqの升が1であるbitboard
-var SquareBB: array[SQ_NB_PLUS1, Bitboard];
+var SquareBB: array[SQ_NB_PLUS1, Bitboard]
+
+let ZERO_BB = Bitboard(p: [0'i64, 0'i64])
 
 ##
 ##Bitboard関係のテーブルの初期化
@@ -427,3 +460,41 @@ for sq in Square:
     else: SquareBB[sq.ord].p[0] = 0
     if f >= FILE_8: SquareBB[sq.ord].p[1] = (1 << ((f.ord - FILE_8.ord) * 9 + r.ord))
     else: SquareBB[sq.ord].p[1] = 0
+    
+# 4) 遠方利きのテーブルの初期化
+#  thanks to Apery (Takuya Hiraoka)
+# 引数のindexをbits桁の2進数としてみなす。すなわちindex(0から2^bits-1)。
+# 与えられたmask(1の数がbitsだけある)に対して、1のbitのいくつかを(indexの値に従って)0にする。
+proc indexToOccupied(index: int, bits: int, mask: Bitboard): Bitboard = 
+    let m = mask
+    result = ZERO_BB
+    for i in countup(0, (bits - 1)):
+        let sq: Square = mask.pop()
+        if (index and (1 << i)) > 0:
+            if sq <= SQ_79: result.p[0] = result.p[0] xor sq.ord # 
+            else: result.p[1] = result.p[1] xor sq.ord # 
+            
+# Rook or Bishop の利きの範囲を調べて bitboard で返す。
+# occupied  障害物があるマスが 1 の bitboard
+proc effectCalc(square: Square, occupied: Bitboard, piece: Piece): Bitboard =
+    result = ZERO_BB;
+    # 角の利きのrayと飛車の利きのray
+    const deltaArray = [[SQWW_RU, SQWW_RD, SQWW_LU, SQWW_LD ], [ SQWW_U, SQWW_D, SQWW_R, SQWW_L]]
+    var i = 0
+    if piece == BISHOP: i = 0 else: i = 1
+    for delta in deltaArray[i]:
+        var sqww = SquareWithWall(to_sqww(square) + delta) # 壁に当たるまでsqを利き方向に伸ばしていく
+        while is_ok(sqww):
+            var sq = to_sq(sqww)
+            # まだ障害物に当っていないのでここまでは利きが到達している
+            if sq <= SQ_79:
+                result.p[0] = result.p[0] xor sq.ord #
+                if (occupied.p[0].ord and sq.ord) > 0: # sqの地点に障害物があればこのrayは終了。
+                    p occupied
+                    break
+            else:
+                result.p[1] = result.p[1] xor sq.ord #
+                if (occupied.p[1].ord and sq.ord) > 0: # sqの地点に障害物があればこのrayは終了。
+                    p occupied
+                    break
+            sqww = SquareWithWall(sqww.ord + delta.ord)
